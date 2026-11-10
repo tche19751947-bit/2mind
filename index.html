@@ -232,7 +232,7 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 .aclock{font-weight:800;font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .amain{display:grid;grid-template-columns:minmax(260px,36%) 1fr;gap:22px;min-height:0}
 .amapc{background:var(--surface-t);border-radius:26px;box-shadow:var(--card);padding:14px;display:flex;min-height:0}
-#aCv{width:100%;height:100%;object-fit:contain;border-radius:16px;background:var(--sec)}
+#aCv{width:100%;height:100%;border-radius:16px;background:var(--sec)}
 .acard{background:var(--surface-t);border-radius:26px;box-shadow:var(--card);padding:34px 40px;overflow:auto;scroll-behavior:smooth;min-height:0}
 .acrumb{font-size:17px;color:var(--muted);font-weight:500;margin-bottom:6px}
 .atitle{font-size:clamp(34px,4.4vw,58px);font-weight:800;letter-spacing:-.035em;line-height:1.05;margin:0 0 22px;display:flex;align-items:center;gap:14px}
@@ -268,9 +268,9 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 
 /* ===== responsivo ===== */
 @media (max-width:1180px){.search{width:130px}.hide-m{display:none}.btn .lbl{display:none}.btn:not(.primary):not(.title-btn){padding:0 11px}.btn.primary .lbl{display:inline}}
-@media (max-width:1000px){#side,#mini{display:none}.ring .t2{display:none}#menu{right:14px}}
+@media (max-width:1000px){#side,#mini{display:none}.ring{display:none}.title-btn{max-width:130px}#menu{right:14px}}
 @media (max-width:720px){
-  header{gap:6px;padding:0 8px;height:54px}.lw,.title-btn,#saved{display:none}.search{width:92px}.btn.primary .lbl{display:none}
+  header{gap:5px;padding:0 8px;height:54px}.lw,.title-btn,#saved,.ring,#btnAmb{display:none}.search{width:72px;min-width:0;flex:1 1 72px}.search-w{flex:1 1 72px;min-width:0}.spacer{display:none}.btn.primary .lbl{display:none}.btn.icon,#btnStudy,#btnRev{flex:none}.logo{margin-right:0}
   #panel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:62vh;transform:translateY(110%)}#panel.open{transform:none}
   .amain{grid-template-columns:1fr;grid-template-rows:30% 1fr}.acard{padding:22px}.atop{gap:12px}.amt{display:none}.xlist,.tools,.keys{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}
   .abtn{height:50px;padding:0 14px}.actl{height:50px}
@@ -492,6 +492,18 @@ var curMap,root,all,byId,st,sel=null,query='',focusOn=false,revOn=false,V={x:0,y
 function saveLib(){save('mm.lib',lib);flashSaved()}
 function norm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()}
 
+function sanitize(n,depth){
+  if(typeof n!=='object'||n===null)n={t:String(n==null?'':n)};
+  if(depth>40)n.c=[];
+  n.t=String(n.t==null?'':n.t).slice(0,400);
+  ['n','e','a','q','r','ic','im','k'].forEach(function(k){if(n[k]!=null&&typeof n[k]!=='string')n[k]=typeof n[k]==='object'?'':String(n[k])});
+  if(n.d!=null&&!Array.isArray(n.d))n.d=[String(n.d)];
+  if(n.c!=null&&!Array.isArray(n.c))n.c=[];
+  if(n.c)n.c=n.c.filter(function(x){return x!==null&&x!==undefined&&x!==''}).map(function(x){return sanitize(x,(depth||0)+1)});
+  return n;
+}
+function dupIds(n,seen){if(n.i){if(seen[n.i])return true;seen[n.i]=1}for(var k=0;k<(n.c||[]).length;k++)if(dupIds(n.c[k],seen))return true;return false}
+function resetIds(n,path){n.i=path;(n.c||[]).forEach(function(k,x){resetIds(k,path+'.'+x)})}
 function assignIds(n,path){var ch=false;if(!n.i){n.i=path;ch=true}(n.c||[]).forEach(function(k,x){if(assignIds(k,n.i+'.'+x))ch=true});return ch}
 function index(n,depth,branch,parent,bc){
   n.t=String(n.t==null?'':n.t);n.c=Array.isArray(n.c)?n.c:[];n.d=Array.isArray(n.d)?n.d.map(String):[];
@@ -509,7 +521,7 @@ function hasContent(n){return !!(n.n||n.d.length||n.e||n.a||n.q)}
 function openMap(id){
   var m=lib.filter(function(x){return x.id===id})[0];if(!m)return;
   curMap=m;curId=id;save('mm.cur',id);
-  if(assignIds(m.tree,'r'))saveLib();
+  m.tree=sanitize(m.tree,0);if(dupIds(m.tree,{}))resetIds(m.tree,'r');if(assignIds(m.tree,'r'))saveLib();
   buildRuntime();
   var s=load('mm.st.'+id,null);
   if(!s){s={collapsed:[],studied:[],flag:[],cards:{}};all.forEach(function(n){if(n.depth>=2&&n.c.length)s.collapsed.push(n.id)})}
@@ -715,10 +727,12 @@ function fit(smooth){
 }
 function zoomAt(f,mx,my){var nk=clamp(V.k*f,.15,2.5);V.x=mx-(mx-V.x)*nk/V.k;V.y=my-(my-V.y)*nk/V.k;V.k=nk;schedV()}
 function centerOn(n){
+  if(!n||n.x==null)return;
   var k=clamp(V.k,.85,1.1),W=stage.clientWidth-panelW(),H=stage.clientHeight-sheetH();
   V.k=k;V.x=(sideW()+W)/2-(n.x+n.w/2)*k;V.y=(TOP+H)/2-n.cy*k;applyV(true);
 }
 function ensureVisible(n){
+  if(!n||n.x==null||!stage)return;
   var sx=n.x*V.k+V.x,sy=n.cy*V.k+V.y;
   if(sx<sideW()||sx+n.w*V.k>stage.clientWidth-panelW()||sy<TOP||sy>stage.clientHeight-sheetH())centerOn(n);
 }
@@ -885,6 +899,8 @@ var qT=0;$('#q').addEventListener('input',function(e){query=e.target.value;clear
 /* ---------- menu ---------- */
 var menu=$('#menu');
 function menuItems(){return[
+  {i:'book',l:'Biblioteca de mapas',s:'B',f:openLib},{i:'monitor',l:'Modo Tela 2',s:'A',f:ambStart},{i:'history',l:'Progresso do mapa',s:ringShort(),f:function(){openStudy()}},
+  '-',
   {i:'expand',l:'Expandir tudo',f:expandAll},{i:'collapse',l:'Recolher ramos',f:collapseAll},
   {i:'target',l:'Foco no ramo selecionado',s:focusOn?'ligado':'',f:function(){if(!focusOn&&!sel){toast('Clique em um tópico primeiro');return}setFocus(!focusOn)}},
   '-',
@@ -896,6 +912,7 @@ function menuItems(){return[
   {i:'download',l:'Exportar e compartilhar',f:function(){$('#dlgExport').showModal()}},
   {i:'keyboard',l:'Atalhos de teclado',s:'?',f:openHelp}
 ]}
+function ringShort(){return $('#ringPct').textContent}
 function openMenu(){
   menu.innerHTML='';
   menuItems().forEach(function(it){
@@ -1099,7 +1116,7 @@ $('#btnAdd').onclick=function(){
     var ttl=$('#mapTitle').value.trim(),o=readInput($('#paste').value,ttl),added=0,txtMode=o._k==='text',scaffold=false;
     var items=o.maps&&Array.isArray(o.maps)?o.maps:[o];
     items.forEach(function(it){
-      var tree=it.tree||it;if(tree&&tree._base){scaffold=true;delete tree._base}if(!tree||typeof tree.t!=='string')throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
+      var tree=it.tree||it;if(tree&&tree._base){scaffold=true;delete tree._base}if(tree&&(typeof tree.t==='number'||typeof tree.t==='boolean'))tree.t=String(tree.t);if(!tree||typeof tree.t!=='string')throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
       var m={id:'m'+Date.now().toString(36)+added,title:String(ttl||it.title||tree.t||'Meu mapa'),tree:tree};
       if(lib.some(function(x){return x.id===m.id}))m.id+=newId();
       lib.push(m);if(it.state)save('mm.st.'+m.id,it.state);added++;
@@ -1145,26 +1162,34 @@ function aiErr(status,msg){
   if(status>=500)return'O Google está instável agora. Tente de novo em instantes.';
   return'O Google devolveu um erro ('+status+'): '+msg.slice(0,160);
 }
-async function callGemini(input){
-  var pr=aiPrompt(input),models=[AI.model].concat(AI_MODELS.filter(function(m){return m!==AI.model})),last=null;
-  for(var i=0;i<models.length;i++){
-    var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},150000),res;
-    try{
-      res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(models[i])+':generateContent',{
-        method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':AI.key},
-        body:JSON.stringify({systemInstruction:{parts:[{text:pr.sys}]},contents:[{role:'user',parts:[{text:pr.user}]}],generationConfig:{responseMimeType:'application/json',temperature:.5,maxOutputTokens:30000}})
-      });
-    }catch(e){clearTimeout(to);throw new Error(e&&e.name==='AbortError'?'Demorou demais. Tente de novo, ou use um tema menor.':'Não consegui falar com o Google. Verifique a internet e tente de novo.')}
-    clearTimeout(to);
-    var data=null;try{data=await res.json()}catch(e){}
-    if(res.status===404){last=models[i];continue}
-    if(!res.ok)throw new Error(aiErr(res.status,data&&data.error&&data.error.message));
-    var c=data&&data.candidates&&data.candidates[0],txt=c&&c.content&&c.content.parts?c.content.parts.map(function(x){return x.text||''}).join(''):'';
-    if(!txt){var br=data&&data.promptFeedback&&data.promptFeedback.blockReason;throw new Error(br?'O Google bloqueou esse pedido ('+br+'). Reescreva o tema.':'O Google não devolveu conteúdo. Tente de novo.')}
-    if(models[i]!==AI.model){AI.model=models[i];aiSave()}
-    return{text:txt,cut:c.finishReason==='MAX_TOKENS'};
+async function callGemini(input,onWait){
+  var pr=aiPrompt(input),models=[AI.model].concat(AI_MODELS.filter(function(m){return m!==AI.model})),lastNF=null,lastErr=null;
+  for(var pass=0;pass<3;pass++){
+    if(pass>0){if(onWait)onWait(pass);await new Promise(function(r){setTimeout(r,pass*4000)})}
+    var retry=false;
+    for(var i=0;i<models.length;i++){
+      var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},150000),res;
+      try{
+        res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(models[i])+':generateContent',{
+          method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':AI.key},
+          body:JSON.stringify({systemInstruction:{parts:[{text:pr.sys}]},contents:[{role:'user',parts:[{text:pr.user}]}],generationConfig:{responseMimeType:'application/json',temperature:.5,maxOutputTokens:30000}})
+        });
+      }catch(e){clearTimeout(to);throw new Error(e&&e.name==='AbortError'?'Demorou demais. Tente de novo, ou use um tema menor.':'Não consegui falar com o Google. Verifique a internet e tente de novo.')}
+      clearTimeout(to);
+      var data=null;try{data=await res.json()}catch(e){}
+      var gm=data&&data.error&&data.error.message;
+      if(res.status===404){lastNF=models[i];continue}
+      if(res.status===429||res.status>=500){retry=true;lastErr=aiErr(res.status,gm)+(gm?' (Google: '+String(gm).slice(0,110)+')':'');continue}
+      if(!res.ok)throw new Error(aiErr(res.status,gm));
+      var c=data&&data.candidates&&data.candidates[0],txt=c&&c.content&&c.content.parts?c.content.parts.map(function(x){return x.text||''}).join(''):'';
+      if(!txt){var br=data&&data.promptFeedback&&data.promptFeedback.blockReason;throw new Error(br?'O Google bloqueou esse pedido ('+br+'). Reescreva o tema.':'O Google não devolveu conteúdo. Tente de novo.')}
+      if(models[i]!==AI.model){AI.model=models[i];aiSave()}
+      return{text:txt,cut:c.finishReason==='MAX_TOKENS'};
+    }
+    if(!retry)break;
   }
-  throw new Error('Nenhum modelo encontrado ('+last+'). Troque o nome do modelo em ⋯ (ex.: gemini-2.5-flash).');
+  if(lastErr)throw new Error(lastErr);
+  throw new Error('Nenhum modelo encontrado ('+lastNF+'). Troque o nome do modelo em ⋯ (ex.: gemini-2.5-flash).');
 }
 $('#btnAI').onclick=async function(){
   var btn=$('#btnAI'),raw=$('#paste').value.trim(),ttl=$('#mapTitle').value.trim(),input=raw||ttl;
@@ -1174,7 +1199,7 @@ $('#btnAI').onclick=async function(){
   if(!AI.key){openAI(true);return}
   var lbl=btn.lastElementChild.textContent;btn.disabled=true;btn.lastElementChild.textContent='Gerando… (até 1 min)';
   try{
-    var r=await callGemini(input);
+    var r=await callGemini(input,function(n){btn.lastElementChild.textContent='Google ocupado, tentando de novo ('+n+'/2)…'});
     $('#paste').value=r.text;
     $('#btnAdd').onclick();
     if(r.cut)toast('O mapa veio incompleto (resposta cortada). Gere de novo com um tema menor.');
@@ -1296,7 +1321,7 @@ function drawStudy(){
       h=head('Flashcards',1)+'<div class="prog"><i style="width:'+(study.i/study.deck.length*100)+'%"></i></div>'
        +'<div class="fc'+(study.flip?' flip':'')+'" id="fc" style="--bc:'+colorOf(n)+'"><div class="fci"><div class="face fr"><small>'+esc(crumb(n).concat([n.t]).join(' › '))+' · '+(study.i+1)+' de '+study.deck.length+'</small><div class="big">'+esc(front)+'</div><small>Clique ou use Espaço para virar</small></div>'
        +'<div class="face bk"><small>Resposta</small><div class="mid" style="white-space:pre-wrap">'+esc(back)+'</div></div></div></div>'
-       +'<div class="rate"><button class="btn" data-r="0">Errei (1)</button><button class="btn" data-r="1">Difícil (2)</button><button class="btn primary" data-r="2">Fácil (3)</button></div>'}
+       +'<div class="rate" id="rate"><button class="btn" data-r="0"'+(study.flip?'':' disabled')+'>Errei (1)</button><button class="btn" data-r="1"'+(study.flip?'':' disabled')+'>Difícil (2)</button><button class="btn primary" data-r="2"'+(study.flip?'':' disabled')+'>Fácil (3)</button></div>'+(study.flip?'':'<p style="text-align:center">Pense na resposta, vire o cartão e depois diga como foi.</p>')+''}
   }else if(v==='quiz'){
     if(!study.quiz.length){study.quiz=buildQuiz(10);study.qi=0;study.ans=null;study.score=0;study.miss=[]}
     if(!study.quiz.length)h=head('Quiz do mapa',1)+'<p>Ainda não há conteúdo suficiente para montar perguntas. Adicione resumos aos tópicos (campo “Resumo”) e tente de novo.</p>';
@@ -1349,10 +1374,11 @@ $('#dlgStudy').addEventListener('click',function(e){
   }
   if(r){rateCard(+r.dataset.r);return}
   if(o&&study.ans===null){var q=study.quiz[study.qi];study.ans=+o.dataset.o;if(study.ans===q.a)study.score++;else study.miss.push(q.id);act(1);drawStudy();return}
-  if(f){study.flip=!study.flip;f.classList.toggle('flip',study.flip)}
+  if(f){flipCard(f)}
 });
+function flipCard(f){study.flip=!study.flip;f.classList.toggle('flip',study.flip);var r=$('#rate');if(r){r.querySelectorAll('button').forEach(function(b){b.disabled=!study.flip});var nx=r.nextElementSibling;if(nx&&nx.tagName==='P')nx.hidden=study.flip}}
 function rateCard(q){
-  var n=study.deck[study.i];if(!n)return;
+  var n=study.deck[study.i];if(!n||!study.flip)return;
   var c=st.cards[n.id]||{b:0,due:0},IV=[0,1,3,7,15,30];
   if(q===0){c.b=0;c.due=Date.now()+10*60e3;st.flag.add(n.id)}
   else if(q===1){c.due=Date.now()+DAY;study.ok++}
@@ -1362,9 +1388,9 @@ function rateCard(q){
 function studyKey(e){
   var d=document.querySelector('dialog[open]');if(!d||d.id!=='dlgStudy')return;
   if(study.view==='flash'||study.view==='revflash'){
-    if(e.key===' '){e.preventDefault();var f=$('#fc');if(f){study.flip=!study.flip;f.classList.toggle('flip',study.flip)}}
+    if(e.key===' '){e.preventDefault();var f=$('#fc');if(f)flipCard(f)}
     else if(study.deck.length&&study.i<study.deck.length&&/^[123]$/.test(e.key))rateCard(+e.key-1);
-  }else if(study.view==='rand'&&e.key===' '){e.preventDefault();var f2=$('#fc');if(f2){study.flip=!study.flip;f2.classList.toggle('flip',study.flip)}}
+  }else if(study.view==='rand'&&e.key===' '){e.preventDefault();var f2=$('#fc');if(f2)flipCard(f2)}
   else if(study.view==='quiz'&&study.ans===null&&/^[1-4]$/.test(e.key)){var q=study.quiz[study.qi];if(q&&+e.key-1<q.o.length){study.ans=+e.key-1;if(study.ans===q.a)study.score++;else study.miss.push(q.id);act(1);drawStudy()}}
   else if(study.view==='quiz'&&study.ans!==null&&(e.key==='Enter'||e.key===' ')){e.preventDefault();study.qi++;study.ans=null;drawStudy()}
 }
@@ -1409,10 +1435,11 @@ function ambLoad(i,all2){
   card.innerHTML='<div class="acrumb">'+esc(crumb(n).join('  ›  '))+'</div><h2 class="atitle">'+(n.ic?esc(n.ic)+' ':'')+esc(n.t)+'</h2><div id="aBlocks"></div><div class="adots" id="aDots">'+amb.steps.map(function(){return'<i></i>'}).join('')+'</div>';
   amb.blocks=$('#aBlocks');amb.dl=null;
   $('#aCount').textContent='Tópico '+(i+1)+' de '+amb.list.length;$('#aBar').style.width=((i+1)/amb.list.length*100)+'%';
-  drawMapTo($('#aCv'),n,false);
+  ambCanvas();drawMapTo($('#aCv'),n,false);
   if(all2){for(var s=1;s<amb.steps.length;s++)ambReveal(s,true);amb.si=amb.steps.length-1}
   ambDots();syncAmbUi();ambSchedule();
 }
+function ambCanvas(){var cv=$('#aCv'),r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);if(r.width>10&&(cv.width!==Math.round(r.width*d)||cv.height!==Math.round(r.height*d))){cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d)}}
 function ambReveal(si,quiet){
   var s=amb.steps[si];if(!s||s.k==='h')return;var b=amb.blocks,el;
   if(s.k==='d'){if(!amb.dl){amb.dl=document.createElement('ul');amb.dl.className='a-d';b.appendChild(amb.dl)}el=document.createElement('li');el.textContent=s.v;amb.dl.appendChild(el)}
@@ -1474,11 +1501,11 @@ $('#aScope').onchange=function(e){
 };
 $('#aQa').onclick=function(){P.qa=!P.qa;savePrefs();syncAmbUi()};
 $('#aSei').onclick=function(){var n=amb.list[amb.ni];if(n){toggleStudied(n);syncAmbUi()}};
-$('#aTheme').onclick=function(){cycleTheme();drawMapTo($('#aCv'),amb.list[amb.ni],false)};
+$('#aTheme').onclick=function(){cycleTheme();ambCanvas();drawMapTo($('#aCv'),amb.list[amb.ni],false)};
 document.addEventListener('visibilitychange',function(){if(!amb.on||document.hidden)return;try{if(navigator.wakeLock&&!amb.wake)navigator.wakeLock.request('screen').then(function(w){amb.wake=w}).catch(function(){})}catch(e){}});
 
 /* ---------- início ---------- */
-window.addEventListener('resize',function(){miniSoon();cullSoon()});
+window.addEventListener('resize',function(){miniSoon();cullSoon();if(amb.on&&amb.list[amb.ni]){ambCanvas();drawMapTo($('#aCv'),amb.list[amb.ni],false)}});
 applyPrefs();
 openMap(curId);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){all.forEach(measure);nodeEls.forEach(function(g){g._sig=null});render();fit(false)});
