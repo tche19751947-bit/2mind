@@ -391,13 +391,14 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 
 <dialog id="dlgNew"><div class="dlg">
   <h3>Novo mapa</h3>
-  <p>Cole um resumo ou uma lista de tópicos e o mapa é montado na hora, sem gastar crédito. Para um mapa detalhado, peça ao Claude: copie o pedido, cole no chat e traga a resposta para cá.</p>
+  <p>Digite um tema e clique em <b>Gerar com IA grátis</b> para receber o mapa completo. Ou cole um resumo ou lista de tópicos e clique em Adicionar: o mapa é montado na hora, sem IA.</p>
   <div class="row"><select id="reqType" class="grow" aria-label="Tipo de pedido"><option value="map">Mapa completo de um tema</option><option value="src">Mapa a partir de texto ou PDF (anexe no chat)</option><option value="sug">Sugerir novos tópicos para este mapa</option></select>
   <button class="btn" id="btnPrompt"><svg class="ic"><use href="#i-download"/></svg>Copiar pedido</button>
   <label class="btn" style="cursor:pointer">Arquivo .json<input type="file" id="file" accept=".json,application/json" hidden></label></div>
   <input type="text" id="mapTitle" placeholder="Título do mapa (opcional)" aria-label="Título do mapa">
   <textarea id="paste" class="code" placeholder="Cole aqui um RESUMO ou uma lista de tópicos (com numeração 11.3.1, marcadores ou recuo) e o mapa aparece, sem precisar de JSON. Também aceita JSON gerado pelo Claude ou um backup do 2MIND." spellcheck="false"></textarea>
   <div class="err" id="err"></div>
+  <div class="row"><button class="btn" id="btnAI" title="Gera o mapa completo a partir do tema ou do texto da caixa"><svg class="ic"><use href="#i-bolt"/></svg><span>Gerar com IA grátis</span></button><button class="btn icon" id="btnAIcfg" aria-label="Configurar a IA grátis" title="Configurar a IA grátis"><svg class="ic"><use href="#i-more"/></svg></button><span class="grow"></span></div>
   <div class="row"><button class="btn primary" id="btnAdd">Adicionar como novo mapa</button><button class="btn" id="btnAppend">Adicionar ao tópico selecionado</button><span class="grow"></span><button class="btn" id="newClose">Cancelar</button></div>
 </div></dialog>
 
@@ -429,6 +430,20 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
   </div>
   <div class="row"><span class="grow"></span><button class="btn" id="xClose">Fechar</button></div></div></dialog>
 
+<dialog id="dlgAI"><div class="dlg">
+  <h3><span class="grow">IA grátis (Google Gemini)</span></h3>
+  <p>Com uma chave grátis do Google, o 2MIND escreve o mapa completo a partir de um tema ou de um texto. Não gasta o seu limite do Claude.</p>
+  <ol style="margin:0;padding-left:20px;color:var(--muted);font-size:14px;line-height:1.7">
+    <li>Abra <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--brand);font-weight:700">aistudio.google.com/apikey</a> e entre com a sua conta Google.</li>
+    <li>Clique em <b>Criar chave de API</b> e copie a chave.</li>
+    <li>Cole abaixo e salve. A chave fica só neste navegador.</li>
+  </ol>
+  <label class="fld"><span>Chave de API</span><input type="text" id="aiKey" autocomplete="off" spellcheck="false" placeholder="AIza..." style="-webkit-text-security:disc"></label>
+  <label class="fld"><span>Modelo</span><input type="text" id="aiModel" autocomplete="off" spellcheck="false" placeholder="gemini-2.5-flash"></label>
+  <p style="font-size:13px">Atenção: no plano grátis o Google pode usar o que você enviar para melhorar os produtos dele. Não use para textos privados. Há limite de pedidos por minuto e por dia. Se o modelo mudar de nome, troque aqui.</p>
+  <div class="err" id="aiErr"></div>
+  <div class="row"><button class="btn primary" id="aiSave">Salvar</button><button class="btn danger" id="aiDel">Remover chave</button><span class="grow"></span><button class="btn" id="aiClose">Fechar</button></div>
+</div></dialog>
 <dialog id="dlgHelp"><div class="dlg"><h3>Atalhos de teclado</h3><div class="keys" id="keys"></div><div class="row"><span class="grow"></span><button class="btn" id="hClose">Fechar</button></div></div></dialog>
 
 <div class="toast" id="toast" role="status" popover="manual"></div>
@@ -965,7 +980,8 @@ $('#btnPrompt').onclick=function(){
   var t=$('#reqType').value,p;
   var fmt='{"title":"Título","tree":{"t":"Tema central","n":"resumo do tema","c":[{"t":"Ramo","n":"resumo de 2 a 3 frases","d":["detalhe 1","detalhe 2"],"e":"exemplo","a":"pegadinha ou erro comum","q":"pergunta de fixação","r":"resposta","c":[]}]}}';
   var rules='Regras: 5 a 7 ramos principais, 2 a 3 níveis, títulos de nós com 2 a 6 palavras; todo ramo e subtópico importante com "n" e "d" (2 a 4 itens com datas, causas, consequências, conceitos); "e", "a", "q" e "r" nos conceitos-chave; cobrir o conteúdo inteiro, com fatos corretos.';
-  if(t==='map')p='Gere um mapa mental de estudo DETALHADO em JSON sobre: [TEMA / CAPÍTULO]. Responda SOMENTE com o JSON, sem texto antes ou depois, neste formato: '+fmt+'. '+rules;
+  var raw0=$('#paste').value.trim(),theme=$('#mapTitle').value.trim()||((raw0&&raw0.length<160&&raw0.indexOf('\n')<0&&!/^[\[{]/.test(raw0))?raw0:'[TEMA / CAPÍTULO]');
+  if(t==='map')p='Gere um mapa mental de estudo DETALHADO em JSON sobre: '+theme+'. Responda SOMENTE com o JSON, sem texto antes ou depois, neste formato: '+fmt+'. '+rules;
   else if(t==='src')p='Leia o material que anexei e gere um mapa mental de estudo DETALHADO em JSON, fiel ao conteúdo dele (sem inventar). Responda SOMENTE com o JSON neste formato: '+fmt+'. '+rules;
   else{var o=[];outline(root,0,o);p='Este é o mapa "'+curMap.title+'" (estrutura atual):\n'+o.join('\n')+'\n\nSugira novos tópicos que estão faltando, sem repetir os existentes. Responda SOMENTE com JSON neste formato: {"c":[{"t":"Tópico","n":"resumo","d":["detalhe"],"e":"exemplo","a":"pegadinha","q":"pergunta","r":"resposta","c":[]}]}';}
   (navigator.clipboard?navigator.clipboard.writeText(p):Promise.reject()).then(function(){toast('Pedido copiado. Cole no chat com o Claude')},function(){$('#paste').value=p;toast('Copie o texto da caixa')});
@@ -1031,6 +1047,14 @@ function textToTree(txt,title){
     lines.push({para:pi,ind:ind,dp:dp,txt:body,long:body.length>90||(/[.!?]$/.test(body)&&body.split(/\s+/).length>12)});
   }
   if(!lines.length)throw new Error('O texto está vazio.');
+  if(lines.length===1&&!lines[0].long){ // poucas palavras: tema solto ou lista separada por vírgula
+    var one=lines[0].txt.replace(/[.]+$/,''),cap=function(x){x=x.trim();return x.charAt(0).toUpperCase()+x.slice(1)},ttl0=title||'',kids,head2=one,mm0=one.match(/^([^:]{2,80}):\s*(.+)$/);
+    if(mm0){head2=mm0[1];kids=mm0[2].split(/\s*[;,]\s*|\s+e\s+/).filter(Boolean)}
+    else if(/[;,]/.test(one)){kids=one.split(/\s*[;,]\s*/).filter(Boolean);head2=ttl0||'Mapa mental'}
+    if(kids&&kids.length>=2)return{t:cap(ttl0||head2),c:kids.map(function(k){return{t:cap(k)}})};
+    var base=['O que é','Conceitos principais','Fórmulas e regras','Exemplos resolvidos','Erros comuns','Perguntas para revisar'];
+    return{t:cap(ttl0||one),c:base.map(function(b){return{t:b}}),_base:1};
+  }
   if(lines.every(function(l){return l.long})){
     var pr={t:title||'Resumo',c:[]},groups={},short=function(x){var w=x.split(/\s+/).slice(0,6);while(w.length>2&&/^(em|de|do|da|dos|das|no|na|nos|nas|e|a|o|as|os|que|foi|é|era|um|uma|por|para|com|se|ao|à)$/i.test(w[w.length-1].replace(/[.,;:!?]+$/,'')))w.pop();return w.join(' ').replace(/[.,;:!?]+$/,'')};
     lines.forEach(function(l){(groups[l.para]=groups[l.para]||[]).push(l.txt)});
@@ -1072,16 +1096,16 @@ function readInput(txt,title){
 function freshIds(n){n.i=newId();(n.c||[]).forEach(freshIds)}
 $('#btnAdd').onclick=function(){
   try{
-    var ttl=$('#mapTitle').value.trim(),o=readInput($('#paste').value,ttl),added=0,txtMode=o._k==='text';
+    var ttl=$('#mapTitle').value.trim(),o=readInput($('#paste').value,ttl),added=0,txtMode=o._k==='text',scaffold=false;
     var items=o.maps&&Array.isArray(o.maps)?o.maps:[o];
     items.forEach(function(it){
-      var tree=it.tree||it;if(!tree||typeof tree.t!=='string')throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
+      var tree=it.tree||it;if(tree&&tree._base){scaffold=true;delete tree._base}if(!tree||typeof tree.t!=='string')throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
       var m={id:'m'+Date.now().toString(36)+added,title:String(ttl||it.title||tree.t||'Meu mapa'),tree:tree};
       if(lib.some(function(x){return x.id===m.id}))m.id+=newId();
       lib.push(m);if(it.state)save('mm.st.'+m.id,it.state);added++;
     });
     saveLib();$('#paste').value='';$('#mapTitle').value='';$('#dlgNew').close();openMap(lib[lib.length-1].id);
-    toast(added>1?added+' mapas importados':txtMode?'Mapa criado a partir do texto':'Mapa adicionado');
+    toast(added>1?added+' mapas importados':scaffold?'Criei só a estrutura. Para preencher o conteúdo, peça ao Claude (botão Copiar pedido)':txtMode?'Mapa criado a partir do texto':'Mapa adicionado');
   }catch(e){$('#err').textContent='Não consegui montar o mapa: '+e.message}
 };
 $('#btnAppend').onclick=function(){
@@ -1092,6 +1116,70 @@ $('#btnAppend').onclick=function(){
     var r=findRaw(curMap.tree,sel.id);list.forEach(function(k){freshIds(k)});r.n.c=(r.n.c||[]).concat(list);
     st.collapsed.delete(sel.id);persist();saveLib();$('#paste').value='';$('#dlgNew').close();reload();toast(list.length+' ramo(s) adicionado(s)');
   }catch(e){$('#err').textContent=e.message}
+};
+
+
+/* ---------- IA grátis (Google Gemini), direto do navegador ---------- */
+var AI=Object.assign({key:'',model:'gemini-2.5-flash'},load('mm.ai',{}));
+var AI_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-3.5-flash'];
+function aiSave(){save('mm.ai',AI)}
+function openAI(thenGen){$('#aiErr').textContent='';$('#aiKey').value=AI.key||'';$('#aiModel').value=AI.model||'gemini-2.5-flash';$('#dlgAI')._gen=!!thenGen;$('#dlgAI').showModal();$('#aiKey').focus()}
+$('#btnAIcfg').onclick=function(){openAI(false)};$('#aiClose').onclick=function(){$('#dlgAI').close()};
+$('#aiSave').onclick=function(){
+  var k=$('#aiKey').value.trim();if(!k){$('#aiErr').textContent='Cole a chave de API.';return}
+  AI.key=k;AI.model=$('#aiModel').value.trim()||'gemini-2.5-flash';aiSave();var g=$('#dlgAI')._gen;$('#dlgAI').close();toast('Chave salva neste navegador');if(g)$('#btnAI').click();
+};
+$('#aiDel').onclick=function(){AI.key='';aiSave();$('#aiKey').value='';toast('Chave removida')};
+var AI_FMT='{"title":"Título","tree":{"t":"Tema central","n":"resumo do tema","c":[{"t":"Ramo","n":"resumo de 2 a 3 frases","d":["detalhe 1","detalhe 2"],"e":"exemplo","a":"pegadinha ou erro comum","q":"pergunta de fixação","r":"resposta","c":[]}]}}';
+function aiPrompt(input){
+  var isSrc=input.length>160||input.indexOf('\n')>-1;
+  var sys='Você é um professor que cria mapas mentais de estudo em português do Brasil, com fatos corretos, para estudantes do Ensino Médio. Responda SOMENTE com um JSON válido, sem texto antes ou depois, sem markdown.';
+  var rules='Formato exato (campos: t=título do nó, n=resumo de 2 a 3 frases, d=lista de 2 a 4 detalhes, e=exemplo, a=pegadinha ou erro comum, q=pergunta de fixação, r=resposta, c=lista de subtópicos no mesmo formato): '+AI_FMT+'. Regras: 5 a 7 ramos principais, 2 a 3 níveis, pelo menos 40 nós no total; títulos de nós com 2 a 6 palavras; todo ramo e subtópico com "n"; ramos e conceitos importantes com "d" (datas, causas, consequências, conceitos); "e", "a", "q" e "r" nos conceitos-chave; cubra o conteúdo inteiro; nada de texto genérico como "Ramo" ou "Tópico"; não invente fatos.';
+  return{sys:sys,user:(isSrc?'Crie o mapa mental fiel ao material abaixo (sem inventar além dele):\n\n'+input:'Crie o mapa mental completo e detalhado sobre: '+input)+'\n\n'+rules};
+}
+function aiErr(status,msg){
+  msg=String(msg||'');
+  if(status===400&&/API key|API_KEY/i.test(msg))return'A chave de API é inválida. Confira a chave salva (botão ⋯).';
+  if(status===401||status===403)return'O Google recusou a chave (sem permissão ou inválida). Crie outra em aistudio.google.com/apikey.';
+  if(status===429)return'Limite grátis do Google atingido. Espere alguns minutos e tente de novo.';
+  if(status>=500)return'O Google está instável agora. Tente de novo em instantes.';
+  return'O Google devolveu um erro ('+status+'): '+msg.slice(0,160);
+}
+async function callGemini(input){
+  var pr=aiPrompt(input),models=[AI.model].concat(AI_MODELS.filter(function(m){return m!==AI.model})),last=null;
+  for(var i=0;i<models.length;i++){
+    var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},150000),res;
+    try{
+      res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(models[i])+':generateContent',{
+        method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':AI.key},
+        body:JSON.stringify({systemInstruction:{parts:[{text:pr.sys}]},contents:[{role:'user',parts:[{text:pr.user}]}],generationConfig:{responseMimeType:'application/json',temperature:.5,maxOutputTokens:30000}})
+      });
+    }catch(e){clearTimeout(to);throw new Error(e&&e.name==='AbortError'?'Demorou demais. Tente de novo, ou use um tema menor.':'Não consegui falar com o Google. Verifique a internet e tente de novo.')}
+    clearTimeout(to);
+    var data=null;try{data=await res.json()}catch(e){}
+    if(res.status===404){last=models[i];continue}
+    if(!res.ok)throw new Error(aiErr(res.status,data&&data.error&&data.error.message));
+    var c=data&&data.candidates&&data.candidates[0],txt=c&&c.content&&c.content.parts?c.content.parts.map(function(x){return x.text||''}).join(''):'';
+    if(!txt){var br=data&&data.promptFeedback&&data.promptFeedback.blockReason;throw new Error(br?'O Google bloqueou esse pedido ('+br+'). Reescreva o tema.':'O Google não devolveu conteúdo. Tente de novo.')}
+    if(models[i]!==AI.model){AI.model=models[i];aiSave()}
+    return{text:txt,cut:c.finishReason==='MAX_TOKENS'};
+  }
+  throw new Error('Nenhum modelo encontrado ('+last+'). Troque o nome do modelo em ⋯ (ex.: gemini-2.5-flash).');
+}
+$('#btnAI').onclick=async function(){
+  var btn=$('#btnAI'),raw=$('#paste').value.trim(),ttl=$('#mapTitle').value.trim(),input=raw||ttl;
+  $('#err').textContent='';
+  if(!input){$('#err').textContent='Digite o tema (ex.: função quadrática) ou cole o material na caixa, e clique de novo.';return}
+  if(/^[\[{]/.test(raw)){$('#err').textContent='Isso já é um JSON. Use "Adicionar como novo mapa".';return}
+  if(!AI.key){openAI(true);return}
+  var lbl=btn.lastElementChild.textContent;btn.disabled=true;btn.lastElementChild.textContent='Gerando… (até 1 min)';
+  try{
+    var r=await callGemini(input);
+    $('#paste').value=r.text;
+    $('#btnAdd').onclick();
+    if(r.cut)toast('O mapa veio incompleto (resposta cortada). Gere de novo com um tema menor.');
+  }catch(e){$('#err').textContent=e.message}
+  btn.disabled=false;btn.lastElementChild.textContent=lbl;
 };
 
 /* ---------- exportar ---------- */
