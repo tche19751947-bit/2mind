@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -59,7 +59,9 @@ button,input,textarea,select,summary{font:inherit;color:inherit}
 #stage.pan .orb,#stage.pan .cube,.lite .orb,.lite .cube{animation-play-state:paused}
 .lite #deco{display:none}
 #world{position:absolute;left:0;top:0;width:1px;height:1px;transform-origin:0 0;cursor:grab;will-change:transform}
-#stage.pan #world{cursor:grabbing}
+#stage{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#stage.pan,#stage.pan .node{cursor:grabbing}
+#stage.pan .node{pointer-events:none}
 #links{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
 .link{fill:none;stroke-linecap:round;transition:d var(--t-slow) var(--ease),opacity var(--t-med)}
 .link.dim{opacity:.16}.link.off{display:none}
@@ -256,7 +258,7 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 .actl input[type=range]{width:130px;accent-color:var(--brand)}.actl select{border:none;background:transparent;font-weight:700;font-size:14px;cursor:pointer}
 .adots{display:flex;gap:6px;justify-content:center;margin-top:2px}.adots i{width:9px;height:9px;border-radius:50%;background:var(--line);transition:background .3s,transform .3s}.adots i.on{background:var(--brand);transform:scale(1.25)}
 
-.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:.3s;z-index:40;pointer-events:none;box-shadow:0 4px 0 #000}
+.toast{margin:0;border:0;inset:auto;position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:.3s;z-index:40;pointer-events:none;box-shadow:0 4px 0 #000}
 .toast.show{opacity:1;transform:translateX(-50%)}
 
 /* ===== modos ===== */
@@ -389,11 +391,12 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 
 <dialog id="dlgNew"><div class="dlg">
   <h3>Novo mapa</h3>
-  <p>O Claude gera o conteúdo no chat (inclusive a partir de texto ou PDF que você anexar). Copie o pedido, cole no chat e traga a resposta em JSON para cá.</p>
+  <p>Cole um resumo ou uma lista de tópicos e o mapa é montado na hora, sem gastar crédito. Para um mapa detalhado, peça ao Claude: copie o pedido, cole no chat e traga a resposta para cá.</p>
   <div class="row"><select id="reqType" class="grow" aria-label="Tipo de pedido"><option value="map">Mapa completo de um tema</option><option value="src">Mapa a partir de texto ou PDF (anexe no chat)</option><option value="sug">Sugerir novos tópicos para este mapa</option></select>
   <button class="btn" id="btnPrompt"><svg class="ic"><use href="#i-download"/></svg>Copiar pedido</button>
   <label class="btn" style="cursor:pointer">Arquivo .json<input type="file" id="file" accept=".json,application/json" hidden></label></div>
-  <textarea id="paste" class="code" placeholder='Cole aqui o JSON. Aceita mapa, ramos ({"c":[...]}) ou um backup do 2MIND.' spellcheck="false"></textarea>
+  <input type="text" id="mapTitle" placeholder="Título do mapa (opcional)" aria-label="Título do mapa">
+  <textarea id="paste" class="code" placeholder="Cole aqui um RESUMO ou uma lista de tópicos (com numeração 11.3.1, marcadores ou recuo) e o mapa aparece, sem precisar de JSON. Também aceita JSON gerado pelo Claude ou um backup do 2MIND." spellcheck="false"></textarea>
   <div class="err" id="err"></div>
   <div class="row"><button class="btn primary" id="btnAdd">Adicionar como novo mapa</button><button class="btn" id="btnAppend">Adicionar ao tópico selecionado</button><span class="grow"></span><button class="btn" id="newClose">Cancelar</button></div>
 </div></dialog>
@@ -410,7 +413,7 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
     <label class="fld"><span>Imagem (endereço https://…)</span><input type="text" id="eI" placeholder="https://"></label>
     <div class="fld" id="eKw"><span>Cor do ramo</span><div class="sw" id="eK"></div></div>
   </div>
-  <div class="row"><button class="btn primary" id="eSave">Salvar</button><button class="btn" id="eAdd"><svg class="ic"><use href="#i-plus"/></svg>Subtópico</button><button class="btn" id="ePaste">Colar ramos</button><span class="grow"></span><button class="btn danger" id="eDel"><svg class="ic"><use href="#i-trash"/></svg>Excluir</button><button class="btn" id="eCancel">Cancelar</button></div>
+  <div class="row"><button class="btn primary" id="eSave">Salvar</button><button class="btn" id="eAdd"><svg class="ic"><use href="#i-plus"/></svg>Subtópico</button><button class="btn" id="ePaste">Colar ramos</button><span class="grow"></span><button class="btn danger" id="eDel"><svg class="ic"><use href="#i-trash"/></svg><span> Excluir</span></button><button class="btn" id="eCancel">Cancelar</button></div>
 </div></dialog>
 
 <dialog id="dlgStudy" class="wide"><div class="dlg" id="studyBody"></div></dialog>
@@ -428,7 +431,7 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 
 <dialog id="dlgHelp"><div class="dlg"><h3>Atalhos de teclado</h3><div class="keys" id="keys"></div><div class="row"><span class="grow"></span><button class="btn" id="hClose">Fechar</button></div></div></dialog>
 
-<div class="toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status" popover="manual"></div>
 
 <script>
 (function(){
@@ -455,7 +458,8 @@ function shade(h,k){return mix(h,'#1A1240',k)}
 /* ---------- armazenamento ---------- */
 function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Não foi possível salvar: armazenamento cheio ou bloqueado')}}
-var P=Object.assign({theme:'light',layout:'h',lite:'auto',speed:7,scope:'all',qa:true,conc:false},load('mm.prefs',{}));
+var P=Object.assign({theme:'dark',layout:'h',lite:'auto',speed:7,scope:'all',qa:true,conc:false},load('mm.prefs',{}));
+if(!P.themeSet)P.theme='dark';
 function savePrefs(){save('mm.prefs',P)}
 var savedT=0;function flashSaved(){var s=$('#saved');s.classList.add('show');clearTimeout(savedT);savedT=setTimeout(function(){s.classList.remove('show')},1600)}
 
@@ -666,7 +670,7 @@ function applyPrefs(){
   document.body.classList.toggle('lite',lite);document.body.classList.toggle('conc',!!P.conc);
 }
 var THEMES=['light','dark','sand'],TN={light:'Claro',dark:'Noite',sand:'Areia'};
-function cycleTheme(){P.theme=THEMES[(THEMES.indexOf(P.theme)+1)%THEMES.length];savePrefs();applyPrefs();miniSoon();toast('Tema: '+TN[P.theme])}
+function cycleTheme(){P.themeSet=1;P.theme=THEMES[(THEMES.indexOf(P.theme)+1)%THEMES.length];savePrefs();applyPrefs();miniSoon();toast('Tema: '+TN[P.theme])}
 function setLayout(v){P.layout=v;savePrefs();render();setTimeout(function(){fit(true)},60);toast('Layout: '+(v==='b'?'equilibrado':'horizontal'))}
 
 /* ---------- câmera ---------- */
@@ -703,13 +707,17 @@ function ensureVisible(n){
   var sx=n.x*V.k+V.x,sy=n.cy*V.k+V.y;
   if(sx<sideW()||sx+n.w*V.k>stage.clientWidth-panelW()||sy<TOP||sy>stage.clientHeight-sheetH())centerOn(n);
 }
-stage.addEventListener('wheel',function(e){e.preventDefault();zoomAt(Math.exp(-e.deltaY*0.0016),e.clientX,e.clientY)},{passive:false});
-var drag=null,moved=false,ptrs=new Map(),pinch=null;
+stage.addEventListener('wheel',function(e){e.preventDefault();stopInert();zoomAt(Math.exp(-e.deltaY*0.0016),e.clientX,e.clientY)},{passive:false});
+var drag=null,moved=false,ptrs=new Map(),pinch=null,inert=0,vel={x:0,y:0,t:0};
 function pdist(a){return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}
+stage.addEventListener('dragstart',function(e){e.preventDefault()});
+stage.addEventListener('selectstart',function(e){e.preventDefault()});
+function stopInert(){if(inert){cancelAnimationFrame(inert);inert=0}}
 stage.addEventListener('pointerdown',function(e){
+  stopInert();
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===2){var a=Array.from(ptrs.values());pinch={d:pdist(a),cx:(a[0].x+a[1].x)/2,cy:(a[0].y+a[1].y)/2,x:V.x,y:V.y,k:V.k};drag=null;moved=true}
-  else if(e.button===0){drag={x:e.clientX,y:e.clientY,vx:V.x,vy:V.y};moved=false}
+  else if(e.button===0||e.pointerType==='touch'||e.pointerType==='pen'){drag={x:e.clientX,y:e.clientY,vx:V.x,vy:V.y};moved=false;vel={x:0,y:0,t:performance.now()}}
 });
 window.addEventListener('pointermove',function(e){
   if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -718,10 +726,28 @@ window.addEventListener('pointermove',function(e){
     V.x=pinch.cx-(pinch.cx-pinch.x)*nk/pinch.k;V.y=pinch.cy-(pinch.cy-pinch.y)*nk/pinch.k;V.k=nk;schedV();return;
   }
   if(!drag)return;var dx=e.clientX-drag.x,dy=e.clientY-drag.y;
-  if(!moved&&Math.hypot(dx,dy)>4){moved=true;stage.classList.add('pan');resetTilt()}
-  if(moved){V.x=drag.vx+dx;V.y=drag.vy+dy;schedV()}
+  if(!moved&&Math.hypot(dx,dy)>3){moved=true;stage.classList.add('pan');resetTilt();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()}
+  if(moved){
+    var nx=drag.vx+dx,ny=drag.vy+dy,t=performance.now(),dt=Math.max(1,t-vel.t);
+    vel.x=.6*vel.x+.4*((nx-V.x)/dt);vel.y=.6*vel.y+.4*((ny-V.y)/dt);vel.t=t;
+    V.x=nx;V.y=ny;schedV();
+  }
 });
-function pend(e){ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(!ptrs.size){drag=null;stage.classList.remove('pan')}}
+function glide(){
+  var last=performance.now();
+  (function step(t){
+    var dt=Math.min(32,t-last);last=t;V.x+=vel.x*dt;V.y+=vel.y*dt;vel.x*=Math.pow(.93,dt/16);vel.y*=Math.pow(.93,dt/16);
+    applyV(false);
+    if(Math.hypot(vel.x,vel.y)>.02)inert=requestAnimationFrame(step);else inert=0;
+  })(last);
+}
+function pend(e){
+  var wasPan=drag&&moved&&!pinch;ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;
+  if(!ptrs.size){drag=null;stage.classList.remove('pan');
+    if(wasPan&&e.type==='pointerup'&&performance.now()-vel.t<80&&Math.hypot(vel.x,vel.y)>.12&&!document.body.classList.contains('lite'))glide();
+    if(moved)setTimeout(function(){moved=false},60);
+  }
+}
 window.addEventListener('pointerup',pend);window.addEventListener('pointercancel',pend);
 $('#zIn').onclick=function(){zoomAt(1.25,(sideW()+stage.clientWidth-panelW())/2,(TOP+stage.clientHeight)/2)};
 $('#zOut').onclick=function(){zoomAt(.8,(sideW()+stage.clientWidth-panelW())/2,(TOP+stage.clientHeight)/2)};
@@ -899,13 +925,14 @@ $('#eAdd').onclick=function(){
 };
 $('#eDel').onclick=function(){
   var r=findRaw(curMap.tree,editId);if(!r||!r.p)return;
-  if(!confirm('Excluir "'+r.n.t+'" e tudo que está dentro dele?'))return;
+  var b=$('#eDel');if(!b._arm){b._arm=1;b.lastChild.textContent=' Confirmar exclusão';setTimeout(function(){b._arm=0;b.lastChild.textContent=' Excluir'},3500);return}
+  b._arm=0;b.lastChild.textContent=' Excluir';
   r.p.c=r.p.c.filter(function(x){return x!==r.n});saveLib();$('#dlgEdit').close();sel=null;closePanel();reload();toast('Tópico excluído');
 };
 $('#ePaste').onclick=function(){$('#dlgEdit').close();openNew()};
 
 /* ---------- biblioteca, novo mapa, importação ---------- */
-var tT=0;function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(tT);tT=setTimeout(function(){el.classList.remove('show')},2400)}
+var tT=0;function toast(t){var el=$('#toast');el.textContent=t;try{if(el.hidePopover)el.hidePopover();el.showPopover()}catch(e){}el.classList.add('show');clearTimeout(tT);tT=setTimeout(function(){el.classList.remove('show');try{el.hidePopover()}catch(e){}},2400)}
 function mapProgress(m){
   var s=load('mm.st.'+m.id,null);if(!s)return 0;var tot=0;(function w(n){tot++;(n.c||[]).forEach(w)})(m.tree);tot--;
   return tot?Math.round(s.studied.filter(function(i){return i!=='r'}).length/tot*100):0;
@@ -917,10 +944,12 @@ function drawLib(){
     it.innerHTML='<b>'+esc(m.title)+'</b><small>'+mapProgress(m)+'% estudado</small>';
     var del=document.createElement('button');del.className='btn sm';del.innerHTML=ico('trash')+'Excluir';
     del.onclick=function(ev){
-      ev.stopPropagation();if(lib.length<2){toast('Mantenha ao menos um mapa');return}
-      if(!confirm('Excluir "'+m.title+'" e o progresso dele?'))return;
-      lib=lib.filter(function(x){return x.id!==m.id});saveLib();try{localStorage.removeItem('mm.st.'+m.id)}catch(e){}
-      if(curId===m.id)openMap(lib[0].id);drawLib();
+      ev.stopPropagation();
+      if(!del._arm){del._arm=1;del.innerHTML=ico('trash')+'Confirmar?';del.classList.add('danger');setTimeout(function(){if(del.isConnected){del._arm=0;del.innerHTML=ico('trash')+'Excluir';del.classList.remove('danger')}},3500);return}
+      lib=lib.filter(function(x){return x.id!==m.id});
+      if(!lib.length){var ex=JSON.parse(JSON.stringify(SAMPLE));lib.push(ex)}
+      saveLib();try{localStorage.removeItem('mm.st.'+m.id)}catch(e){}
+      if(curId===m.id)openMap(lib[0].id);drawLib();toast('Mapa excluído');
     };
     it.appendChild(del);var go=function(){openMap(m.id);$('#dlgLib').close()};
     it.onclick=go;it.onkeydown=function(e){if(e.key==='Enter')go()};box.appendChild(it);
@@ -941,28 +970,124 @@ $('#btnPrompt').onclick=function(){
   else{var o=[];outline(root,0,o);p='Este é o mapa "'+curMap.title+'" (estrutura atual):\n'+o.join('\n')+'\n\nSugira novos tópicos que estão faltando, sem repetir os existentes. Responda SOMENTE com JSON neste formato: {"c":[{"t":"Tópico","n":"resumo","d":["detalhe"],"e":"exemplo","a":"pegadinha","q":"pergunta","r":"resposta","c":[]}]}';}
   (navigator.clipboard?navigator.clipboard.writeText(p):Promise.reject()).then(function(){toast('Pedido copiado. Cole no chat com o Claude')},function(){$('#paste').value=p;toast('Copie o texto da caixa')});
 };
+/* ---- leitura tolerante de JSON (conserta cortes, aspas curvas, vírgulas sobrando, quebras de linha) ---- */
+function repairJson(src){
+  var out='',st2=[],q=null,esc2=false,i,c;
+  for(i=0;i<src.length;i++){
+    c=src[i];
+    if(q){
+      if(esc2){out+=c;esc2=false;continue}
+      if(c==='\\'){out+=c;esc2=true;continue}
+      if(c==='\n'||c==='\r'||c==='\t'){out+=' ';continue}
+      var dl=/^\s*(?:[,:}\]]|$)/.test(src.slice(i+1,i+8));
+      if((q==='"'&&c==='"')||(q==='“'&&(c==='”'||c==='"')&&dl)){out+='"';q=null;continue}
+      if(c==='"'){out+='\\"';continue}
+      out+=c;continue;
+    }
+    if(c==='"'||c==='“'){q=c;out+='"';continue}
+    if(c==='{'||c==='['){st2.push(c==='{'?'}':']');out+=c;continue}
+    if(c==='}'||c===']'){
+      out=out.replace(/,\s*$/,'');
+      if(st2.length&&st2[st2.length-1]===c){st2.pop();out+=c}
+      continue;
+    }
+    out+=c;
+  }
+  if(q){out+='"'}
+  for(;;){
+    var t=out.replace(/\s+$/,'');
+    if(/,$/.test(t)){out=t.slice(0,-1);continue}
+    if(/:$/.test(t)){out=t.slice(0,-1).replace(/"(?:[^"\\]|\\.)*"\s*$/,'');continue}
+    if(/"(?:[^"\\]|\\.)*"\s*$/.test(t)&&/[{,]\s*"(?:[^"\\]|\\.)*"\s*$/.test(t)&&st2.length){out=t.replace(/[{,]\s*"(?:[^"\\]|\\.)*"\s*$/,function(m){return m[0]==='{'?'{':''});continue}
+    break;
+  }
+  while(st2.length)out+=st2.pop();
+  return out.replace(/,\s*([}\]])/g,'$1');
+}
+function looksJson(txt){var t=String(txt).replace(/```(?:json)?/gi,'').trim();return/^[\[{]/.test(t)||/^[^\n]{0,80}\n\s*[\[{]\s*"/.test(t)||/^\s*\{\s*"(title|tree|t|c|maps)"/.test(t)}
 function readJson(txt){
-  txt=String(txt).replace(/```(?:json)?/gi,'');var a=txt.search(/[\[{]/),b=Math.max(txt.lastIndexOf('}'),txt.lastIndexOf(']'));
-  if(a<0||b<a)throw new Error('Não encontrei um JSON no texto colado.');return JSON.parse(txt.slice(a,b+1));
+  txt=String(txt).replace(/```(?:json)?/gi,'');
+  var a=txt.search(/[\[{]/);
+  if(a<0)throw new Error('Não encontrei um JSON no texto colado.');
+  var cut=txt.slice(a),b=Math.max(cut.lastIndexOf('}'),cut.lastIndexOf(']'));
+  try{return JSON.parse(cut.slice(0,b+1))}catch(e1){
+    try{return JSON.parse(repairJson(cut))}catch(e2){throw new Error('o texto parece cortado ou fora do formato ('+e1.message+')')}
+  }
+}
+
+/* ---- texto comum (resumo, tópicos, numeração 11.3.1, markdown) vira mapa, sem JSON e sem IA ---- */
+function splitSentences(p){return(p.match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g)||[p]).map(function(x){return x.trim()}).filter(Boolean)}
+function textToTree(txt,title){
+  var raw=String(txt).replace(/\r/g,'').replace(/```[a-z]*/gi,'').split('\n'),lines=[],i,pi=0;
+  for(i=0;i<raw.length;i++){
+    var L=raw[i];if(!L.trim()){pi++;continue}
+    var ind=(L.match(/^[ \t]*/)[0]).replace(/\t/g,'    ').length,body=L.trim(),dp=null,m;
+    if((m=body.match(/^(#{1,6})\s+(.*)$/))){dp=m[1].length;body=m[2]}
+    else if((m=body.match(/^(\d+(?:\.\d+)*)\.?\s*[\-–—:]?\s+(.*)$/))&&m[2]){dp=m[1].split('.').length;body=m[2]}
+    else if((m=body.match(/^(?:m[oó]dulo|cap[ií]tulo|unidade|parte)\s+\d+\s*[\-–—:.]?\s*(.*)$/i))&&m[1]){dp=1;body=m[1]}
+    else if((m=body.match(/^[\-\*•◦▪+›>]\s+(.*)$/))){body=m[1];ind+=2}
+    body=body.replace(/\*\*|__/g,'').replace(/^\s*[\-–—:]\s*/,'').trim();
+    if(!body)continue;
+    lines.push({para:pi,ind:ind,dp:dp,txt:body,long:body.length>90||(/[.!?]$/.test(body)&&body.split(/\s+/).length>12)});
+  }
+  if(!lines.length)throw new Error('O texto está vazio.');
+  if(lines.every(function(l){return l.long})){
+    var pr={t:title||'Resumo',c:[]},groups={},short=function(x){var w=x.split(/\s+/).slice(0,6);while(w.length>2&&/^(em|de|do|da|dos|das|no|na|nos|nas|e|a|o|as|os|que|foi|é|era|um|uma|por|para|com|se|ao|à)$/i.test(w[w.length-1].replace(/[.,;:!?]+$/,'')))w.pop();return w.join(' ').replace(/[.,;:!?]+$/,'')};
+    lines.forEach(function(l){(groups[l.para]=groups[l.para]||[]).push(l.txt)});
+    var ks=Object.keys(groups);
+    if(ks.length>1)ks.forEach(function(k){var ss=splitSentences(groups[k].join(' ')),b={t:short(ss[0]),n:ss[0],c:[]};if(ss.length>1)b.d=ss.slice(1);pr.c.push(b)});
+    else splitSentences(groups[ks[0]].join(' ')).forEach(function(x){pr.c.push({t:short(x),n:x,c:[]})});
+    (function clean(n){if(!n.c.length)delete n.c;else n.c.forEach(clean)})(pr);
+    return pr;
+  }
+  var hasNum=lines.some(function(l){return l.dp!==null}),inds=Array.from(new Set(lines.map(function(l){return l.ind}))).sort(function(a,b){return a-b});
+  var root={t:title||'',c:[]},stack=[{d:0,node:root}],lastDp=0,lastPlainDp=0,prevPlain=false;
+  lines.forEach(function(l){
+    if(l.long){ // frase longa vira resumo/detalhe do tópico atual
+      var host=stack[stack.length-1].node;
+      if(host===root){var nn={t:l.txt.split(/\s+/).slice(0,6).join(' ').replace(/[.,;:]$/,''),n:l.txt,c:[]};root.c.push(nn);stack.push({d:1,node:nn});lastDp=1;prevPlain=false;return}
+      var parts=splitSentences(l.txt);
+      parts.forEach(function(x){if(!host.n)host.n=x;else{host.d=host.d||[];host.d.push(x)}});
+      return;
+    }
+    var d;
+    if(l.dp!==null){d=l.dp;prevPlain=false;lastDp=d}
+    else if(hasNum){ // sem numeração dentro de texto numerado: irmão da linha anterior sem número, ou filho do último numerado
+      d=prevPlain?lastPlainDp:lastDp+1;prevPlain=true;lastPlainDp=d;
+    }else d=inds.indexOf(l.ind)+1;
+    while(stack.length>1&&stack[stack.length-1].d>=d)stack.pop();
+    var par=stack[stack.length-1].node,node={t:l.txt.replace(/[.:;]$/,''),c:[]};
+    par.c.push(node);stack.push({d:d,node:node});
+  });
+  var tree;
+  if(root.c.length===1&&!title){tree=root.c[0]}
+  else{root.t=title||(root.c[0]&&root.c.length>1?'Mapa mental':'Mapa mental');tree=root}
+  (function clean(n){if(!n.c.length)delete n.c;else n.c.forEach(clean)})(tree);
+  return tree;
+}
+function readInput(txt,title){
+  if(looksJson(txt)){var o=readJson(txt);o._k='json';return o}
+  return{_k:'text',title:title||undefined,tree:textToTree(txt,title)};
 }
 function freshIds(n){n.i=newId();(n.c||[]).forEach(freshIds)}
 $('#btnAdd').onclick=function(){
   try{
-    var o=readJson($('#paste').value),added=0;
+    var ttl=$('#mapTitle').value.trim(),o=readInput($('#paste').value,ttl),added=0,txtMode=o._k==='text';
     var items=o.maps&&Array.isArray(o.maps)?o.maps:[o];
     items.forEach(function(it){
       var tree=it.tree||it;if(!tree||typeof tree.t!=='string')throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
-      var m={id:'m'+Date.now().toString(36)+added,title:String(it.title||tree.t),tree:tree};
+      var m={id:'m'+Date.now().toString(36)+added,title:String(ttl||it.title||tree.t||'Meu mapa'),tree:tree};
       if(lib.some(function(x){return x.id===m.id}))m.id+=newId();
       lib.push(m);if(it.state)save('mm.st.'+m.id,it.state);added++;
     });
-    saveLib();$('#paste').value='';$('#dlgNew').close();openMap(lib[lib.length-1].id);toast(added>1?added+' mapas importados':'Mapa adicionado');
-  }catch(e){$('#err').textContent='JSON inválido: '+e.message}
+    saveLib();$('#paste').value='';$('#mapTitle').value='';$('#dlgNew').close();openMap(lib[lib.length-1].id);
+    toast(added>1?added+' mapas importados':txtMode?'Mapa criado a partir do texto':'Mapa adicionado');
+  }catch(e){$('#err').textContent='Não consegui montar o mapa: '+e.message}
 };
 $('#btnAppend').onclick=function(){
   try{
     if(!sel)throw new Error('Selecione um tópico no mapa primeiro.');
-    var o=readJson($('#paste').value),list=Array.isArray(o)?o:(o.c||(o.tree&&o.tree.c)||(o.t?[o]:null));
+    var o=readInput($('#paste').value,''),list=Array.isArray(o)?o:(o._k==='text'?(o.tree.c||[o.tree]):(o.c||(o.tree&&o.tree.c)||(o.t?[o]:null)));
     if(!list||!list.length)throw new Error('Não encontrei ramos ("c") no texto colado.');
     var r=findRaw(curMap.tree,sel.id);list.forEach(function(k){freshIds(k)});r.n.c=(r.n.c||[]).concat(list);
     st.collapsed.delete(sel.id);persist();saveLib();$('#paste').value='';$('#dlgNew').close();reload();toast(list.length+' ramo(s) adicionado(s)');
