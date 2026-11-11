@@ -439,7 +439,7 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
     <li>Cole abaixo e salve. A chave fica só neste navegador.</li>
   </ol>
   <label class="fld"><span>Chave de API</span><input type="text" id="aiKey" autocomplete="off" spellcheck="false" placeholder="AIza..." style="-webkit-text-security:disc"></label>
-  <label class="fld"><span>Modelo</span><input type="text" id="aiModel" autocomplete="off" spellcheck="false" placeholder="gemini-2.5-flash"></label>
+  <label class="fld"><span>Modelo</span><input type="text" id="aiModel" autocomplete="off" spellcheck="false" placeholder="gemini-flash-latest"></label>
   <p style="font-size:13px">Atenção: no plano grátis o Google pode usar o que você enviar para melhorar os produtos dele. Não use para textos privados. Há limite de pedidos por minuto e por dia. Se o modelo mudar de nome, troque aqui.</p>
   <div class="err" id="aiErr"></div>
   <div class="row"><button class="btn primary" id="aiSave">Salvar</button><button class="btn danger" id="aiDel">Remover chave</button><span class="grow"></span><button class="btn" id="aiClose">Fechar</button></div>
@@ -1156,14 +1156,15 @@ $('#btnAppend').onclick=function(){
 
 
 /* ---------- IA grátis (Google Gemini), direto do navegador ---------- */
-var AI=Object.assign({key:'',model:'gemini-2.5-flash'},load('mm.ai',{}));
-var AI_MODELS=['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-3.5-flash'];
+var AI=Object.assign({key:'',model:'gemini-flash-latest'},load('mm.ai',{}));
+if(/^gemini-(2\.|1\.)/.test(AI.model||''))AI.model='gemini-flash-latest';
+var AI_MODELS=['gemini-flash-latest','gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-2.5-flash'];
 function aiSave(){save('mm.ai',AI)}
-function openAI(thenGen){$('#aiErr').textContent='';$('#aiKey').value=AI.key||'';$('#aiModel').value=AI.model||'gemini-2.5-flash';$('#dlgAI')._gen=!!thenGen;$('#dlgAI').showModal();$('#aiKey').focus()}
+function openAI(thenGen){$('#aiErr').textContent='';$('#aiKey').value=AI.key||'';$('#aiModel').value=AI.model||'gemini-flash-latest';$('#dlgAI')._gen=!!thenGen;$('#dlgAI').showModal();$('#aiKey').focus()}
 $('#btnAIcfg').onclick=function(){openAI(false)};$('#aiClose').onclick=function(){$('#dlgAI').close()};
 $('#aiSave').onclick=function(){
   var k=$('#aiKey').value.trim();if(!k){$('#aiErr').textContent='Cole a chave de API.';return}
-  AI.key=k;AI.model=$('#aiModel').value.trim()||'gemini-2.5-flash';aiSave();var g=$('#dlgAI')._gen;$('#dlgAI').close();toast('Chave salva neste navegador');if(g)$('#btnAI').click();
+  AI.key=k;AI.model=$('#aiModel').value.trim()||'gemini-flash-latest';aiSave();var g=$('#dlgAI')._gen;$('#dlgAI').close();toast('Chave salva neste navegador');if(g)$('#btnAI').click();
 };
 $('#aiDel').onclick=function(){AI.key='';aiSave();$('#aiKey').value='';toast('Chave removida')};
 var AI_FMT='{"title":"Título","tree":{"t":"Tema central","n":"resumo do tema","c":[{"t":"Ramo","n":"resumo de 2 a 3 frases","d":["detalhe 1","detalhe 2"],"e":"exemplo","a":"pegadinha ou erro comum","q":"pergunta de fixação","r":"resposta","c":[]}]}}';
@@ -1197,7 +1198,7 @@ async function callGemini(input,onWait){
       clearTimeout(to);
       var data=null;try{data=await res.json()}catch(e){}
       var gm=data&&data.error&&data.error.message;
-      if(res.status===404){lastNF=models[i];continue}
+      if(res.status===404||(res.status===400&&/not found|no longer available|not supported|deprecated/i.test(String(gm||''))&&!/API key/i.test(String(gm||'')))){lastNF=models[i];continue}
       if(res.status===429||res.status>=500){retry=true;lastErr=aiErr(res.status,gm)+(gm?' (Google: '+String(gm).slice(0,110)+')':'');continue}
       if(!res.ok)throw new Error(aiErr(res.status,gm));
       var c=data&&data.candidates&&data.candidates[0],txt=c&&c.content&&c.content.parts?c.content.parts.map(function(x){return x.text||''}).join(''):'';
@@ -1208,7 +1209,7 @@ async function callGemini(input,onWait){
     if(!retry)break;
   }
   if(lastErr)throw new Error(lastErr);
-  throw new Error('Nenhum modelo encontrado ('+lastNF+'). Troque o nome do modelo em ⋯ (ex.: gemini-2.5-flash).');
+  throw new Error('Nenhum modelo encontrado ('+lastNF+'). Troque o nome do modelo em ⋯ (ex.: gemini-flash-latest).');
 }
 $('#btnAI').onclick=async function(){
   var btn=$('#btnAI'),raw=$('#paste').value.trim(),ttl=$('#mapTitle').value.trim(),input=raw||ttl;
