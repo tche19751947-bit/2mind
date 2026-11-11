@@ -1111,12 +1111,31 @@ function readInput(txt,title){
   return{_k:'text',title:title||undefined,tree:textToTree(txt,title)};
 }
 function freshIds(n){n.i=newId();(n.c||[]).forEach(freshIds)}
+function normNode(n,dep){
+  if(typeof n==='string'||typeof n==='number')return{t:String(n),c:[]};
+  if(Array.isArray(n))return{t:'Mapa',c:n.map(function(x){return normNode(x,dep+1)})};
+  if(!n||typeof n!=='object'||dep>40)return n;
+  var T=['t','title','titulo','título','name','nome','label','topic','topico','tópico','text','texto','tema','heading','node'],C=['c','children','filhos','nodes','branches','ramos','subtopics','subtopicos','subtópicos','topicos','tópicos','items','itens','sub'],D=['d','details','detalhes','points','pontos','bullets','notes','items_d'];
+  if(typeof n.t==='number'||typeof n.t==='boolean')n.t=String(n.t);
+  if(typeof n.t!=='string'){for(var i=0;i<T.length;i++){if(n[T[i]]!=null&&typeof n[T[i]]!=='object'){n.t=String(n[T[i]]);break}}}
+  if(!Array.isArray(n.c)){for(var j=0;j<C.length;j++){if(Array.isArray(n[C[j]])){n.c=n[C[j]];break}}}
+  if(!Array.isArray(n.d)){for(var k=0;k<D.length;k++){if(Array.isArray(n[D[k]])){n.d=n[D[k]];break}}}
+  if(Array.isArray(n.c))n.c=n.c.map(function(x){return normNode(x,dep+1)});
+  return n;
+}
+function findTree(it){
+  var cand=[it.tree,it.root,it.map,it.mapa,it.raiz,it.mindmap,it.data,it];
+  for(var i=0;i<cand.length;i++){var c=cand[i];if(c==null)continue;
+    if(typeof c==='string')continue;
+    if(Array.isArray(c)||typeof c==='object'){var r=normNode(c,0);if(r&&typeof r.t==='string'&&r.t)return r;if(r&&typeof r.t==='string'&&i===cand.length-1)return r}}
+  return null;
+}
 $('#btnAdd').onclick=function(){
   try{
     var ttl=$('#mapTitle').value.trim(),o=readInput($('#paste').value,ttl),added=0,txtMode=o._k==='text',scaffold=false;
     var items=o.maps&&Array.isArray(o.maps)?o.maps:[o];
     items.forEach(function(it){
-      var tree=it.tree||it;if(tree&&tree._base){scaffold=true;delete tree._base}if(tree&&(typeof tree.t==='number'||typeof tree.t==='boolean'))tree.t=String(tree.t);if(!tree||typeof tree.t!=='string')throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
+      var tree=findTree(it);if(tree&&tree._base){scaffold=true;delete tree._base}if(tree&&(typeof tree.t==='number'||typeof tree.t==='boolean'))tree.t=String(tree.t);if(!tree||typeof tree.t!=='string'||!tree.t)throw new Error('O mapa precisa de "tree" com o campo "t" (título do nó).');
       var m={id:'m'+Date.now().toString(36)+added,title:String(ttl||it.title||tree.t||'Meu mapa'),tree:tree};
       if(lib.some(function(x){return x.id===m.id}))m.id+=newId();
       lib.push(m);if(it.state)save('mm.st.'+m.id,it.state);added++;
