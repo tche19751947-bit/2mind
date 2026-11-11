@@ -391,15 +391,15 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
 
 <dialog id="dlgNew"><div class="dlg">
   <h3>Novo mapa</h3>
-  <p>Digite um tema e clique em <b>Gerar com IA grátis</b> para receber o mapa completo. Ou cole um resumo ou lista de tópicos e clique em Adicionar: o mapa é montado na hora, sem IA.</p>
-  <div class="row"><select id="reqType" class="grow" aria-label="Tipo de pedido"><option value="map">Mapa completo de um tema</option><option value="src">Mapa a partir de texto ou PDF (anexe no chat)</option><option value="sug">Sugerir novos tópicos para este mapa</option></select>
+  <p>Digite um tema, ou cole o material que quer estudar, e clique em <b>Gerar mapa com IA</b>. A IA escreve o mapa completo.</p>
+  <div class="row" hidden><select id="reqType" class="grow" aria-label="Tipo de pedido"><option value="map">Mapa completo de um tema</option><option value="src">Mapa a partir de texto ou PDF (anexe no chat)</option><option value="sug">Sugerir novos tópicos para este mapa</option></select>
   <button class="btn" id="btnPrompt"><svg class="ic"><use href="#i-download"/></svg>Copiar pedido</button>
   <label class="btn" style="cursor:pointer">Arquivo .json<input type="file" id="file" accept=".json,application/json" hidden></label></div>
   <input type="text" id="mapTitle" placeholder="Título do mapa (opcional)" aria-label="Título do mapa">
-  <textarea id="paste" class="code" placeholder="Cole aqui um RESUMO ou uma lista de tópicos (com numeração 11.3.1, marcadores ou recuo) e o mapa aparece, sem precisar de JSON. Também aceita JSON gerado pelo Claude ou um backup do 2MIND." spellcheck="false"></textarea>
+  <textarea id="paste" class="code" placeholder="Digite o tema (ex.: função quadrática) ou cole aqui o resumo, a matéria ou os tópicos que quer transformar em mapa." spellcheck="false"></textarea>
   <div class="err" id="err"></div>
-  <div class="row"><button class="btn" id="btnAI" title="Gera o mapa completo a partir do tema ou do texto da caixa"><svg class="ic"><use href="#i-bolt"/></svg><span>Gerar com IA grátis</span></button><button class="btn icon" id="btnAIcfg" aria-label="Configurar a IA grátis" title="Configurar a IA grátis"><svg class="ic"><use href="#i-more"/></svg></button><span class="grow"></span></div>
-  <div class="row"><button class="btn primary" id="btnAdd">Adicionar como novo mapa</button><button class="btn" id="btnAppend">Adicionar ao tópico selecionado</button><span class="grow"></span><button class="btn" id="newClose">Cancelar</button></div>
+  <div class="row"><button class="btn" id="btnAI" title="Gera o mapa completo a partir do tema ou do texto da caixa"><svg class="ic"><use href="#i-bolt"/></svg><span>Gerar mapa com IA</span></button><button class="btn icon" id="btnAIcfg" aria-label="Configurar a IA grátis" title="Configurar a IA grátis"><svg class="ic"><use href="#i-more"/></svg></button><span class="grow"></span></div>
+  <div class="row"><button class="btn primary" id="btnAdd" hidden>Adicionar como novo mapa</button><button class="btn" id="btnAppend" hidden>Adicionar ao tópico selecionado</button><span class="grow"></span><button class="btn" id="newClose">Cancelar</button></div>
 </div></dialog>
 
 <dialog id="dlgEdit"><div class="dlg">
@@ -431,15 +431,18 @@ kbd{font:600 12px var(--font);min-width:26px;text-align:center;padding:3px 8px;b
   <div class="row"><span class="grow"></span><button class="btn" id="xClose">Fechar</button></div></div></dialog>
 
 <dialog id="dlgAI"><div class="dlg">
-  <h3><span class="grow">IA grátis (Google Gemini)</span></h3>
+  <h3><span class="grow">IA grátis</span></h3>
   <p>Com uma chave grátis do Google, o 2MIND escreve o mapa completo a partir de um tema ou de um texto. Não gasta o seu limite do Claude.</p>
   <ol style="margin:0;padding-left:20px;color:var(--muted);font-size:14px;line-height:1.7">
     <li>Abra <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--brand);font-weight:700">aistudio.google.com/apikey</a> e entre com a sua conta Google.</li>
     <li>Clique em <b>Criar chave de API</b> e copie a chave.</li>
     <li>Cole abaixo e salve. A chave fica só neste navegador.</li>
   </ol>
-  <label class="fld"><span>Chave de API</span><input type="text" id="aiKey" autocomplete="off" spellcheck="false" placeholder="AIza..." style="-webkit-text-security:disc"></label>
-  <label class="fld"><span>Modelo</span><input type="text" id="aiModel" autocomplete="off" spellcheck="false" placeholder="gemini-flash-latest"></label>
+  <p style="font-size:13px">Opcional: adicione outras IAs grátis. Se uma estiver ocupada, o app tenta a próxima na hora. Groq: <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--brand);font-weight:700">console.groq.com/keys</a>. OpenRouter: <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--brand);font-weight:700">openrouter.ai/keys</a>.</p>
+  <label class="fld"><span>Chaves do Google (Gemini): uma por linha</span><textarea id="aiKey" rows="2" autocomplete="off" spellcheck="false" placeholder="AIza..." style="-webkit-text-security:disc;width:100%;resize:vertical"></textarea></label>
+  <label class="fld"><span>Chaves do Groq (opcional): uma por linha</span><textarea id="aiGroq" rows="1" autocomplete="off" spellcheck="false" placeholder="gsk_..." style="-webkit-text-security:disc;width:100%;resize:vertical"></textarea></label>
+  <label class="fld"><span>Chaves do OpenRouter (opcional): uma por linha</span><textarea id="aiOr" rows="1" autocomplete="off" spellcheck="false" placeholder="sk-or-..." style="-webkit-text-security:disc;width:100%;resize:vertical"></textarea></label>
+  <label class="fld"><span>Modelo do Google</span><input type="text" id="aiModel" autocomplete="off" spellcheck="false" placeholder="gemini-flash-latest"></label>
   <p style="font-size:13px">Atenção: no plano grátis o Google pode usar o que você enviar para melhorar os produtos dele. Não use para textos privados. Há limite de pedidos por minuto e por dia. Se o modelo mudar de nome, troque aqui.</p>
   <div class="err" id="aiErr"></div>
   <div class="row"><button class="btn primary" id="aiSave">Salvar</button><button class="btn danger" id="aiDel">Remover chave</button><span class="grow"></span><button class="btn" id="aiClose">Fechar</button></div>
@@ -1156,17 +1159,17 @@ $('#btnAppend').onclick=function(){
 
 
 /* ---------- IA grátis (Google Gemini), direto do navegador ---------- */
-var AI=Object.assign({key:'',model:'gemini-flash-latest'},load('mm.ai',{}));
+var AI=Object.assign({key:'',groq:'',or:'',model:'gemini-flash-latest'},load('mm.ai',{}));
 if(/^gemini-(2\.|1\.)/.test(AI.model||''))AI.model='gemini-flash-latest';
-var AI_MODELS=['gemini-flash-latest','gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-2.5-flash'];
+var AI_MODELS=['gemini-3.5-flash-lite','gemini-flash-latest','gemini-3.8-flash','gemini-3.1-flash-lite','gemini-2.5-flash'];
 function aiSave(){save('mm.ai',AI)}
-function openAI(thenGen){$('#aiErr').textContent='';$('#aiKey').value=AI.key||'';$('#aiModel').value=AI.model||'gemini-flash-latest';$('#dlgAI')._gen=!!thenGen;$('#dlgAI').showModal();$('#aiKey').focus()}
+function openAI(thenGen){$('#aiErr').textContent='';$('#aiKey').value=AI.key||'';$('#aiGroq').value=AI.groq||'';$('#aiOr').value=AI.or||'';$('#aiModel').value=AI.model||'gemini-flash-latest';$('#dlgAI')._gen=!!thenGen;$('#dlgAI').showModal();$('#aiKey').focus()}
 $('#btnAIcfg').onclick=function(){openAI(false)};$('#aiClose').onclick=function(){$('#dlgAI').close()};
 $('#aiSave').onclick=function(){
-  var k=$('#aiKey').value.trim();if(!k){$('#aiErr').textContent='Cole a chave de API.';return}
-  AI.key=k;AI.model=$('#aiModel').value.trim()||'gemini-flash-latest';aiSave();var g=$('#dlgAI')._gen;$('#dlgAI').close();toast('Chave salva neste navegador');if(g)$('#btnAI').click();
+  var k=keysOf($('#aiKey').value).join('\n'),kg=keysOf($('#aiGroq').value).join('\n'),ko=keysOf($('#aiOr').value).join('\n');if(!k&&!kg&&!ko){$('#aiErr').textContent='Cole pelo menos uma chave de API.';return}
+  AI.key=k;AI.groq=kg;AI.or=ko;AI.model=$('#aiModel').value.trim()||'gemini-flash-latest';aiSave();var g=$('#dlgAI')._gen;$('#dlgAI').close();toast('Chave salva neste navegador');if(g)$('#btnAI').click();
 };
-$('#aiDel').onclick=function(){AI.key='';aiSave();$('#aiKey').value='';toast('Chave removida')};
+$('#aiDel').onclick=function(){AI.key='';AI.groq='';AI.or='';aiSave();$('#aiKey').value='';$('#aiGroq').value='';$('#aiOr').value='';toast('Chaves removidas')};
 var AI_FMT='{"title":"Título","tree":{"t":"Tema central","n":"resumo do tema","c":[{"t":"Ramo","n":"resumo de 2 a 3 frases","d":["detalhe 1","detalhe 2"],"e":"exemplo","a":"pegadinha ou erro comum","q":"pergunta de fixação","r":"resposta","c":[]}]}}';
 function aiPrompt(input){
   var isSrc=input.length>160||input.indexOf('\n')>-1;
@@ -1182,16 +1185,17 @@ function aiErr(status,msg){
   if(status>=500)return'O Google está instável agora. Tente de novo em instantes.';
   return'O Google devolveu um erro ('+status+'): '+msg.slice(0,160);
 }
-async function callGemini(input,onWait){
+async function callGemini(input,onWait,gkey){
+  if(!gkey)throw new Error('sem chave do Google');
   var pr=aiPrompt(input),models=[AI.model].concat(AI_MODELS.filter(function(m){return m!==AI.model})),lastNF=null,lastErr=null;
-  for(var pass=0;pass<6;pass++){
-    if(pass>0){if(onWait)onWait(pass);await new Promise(function(r){setTimeout(r,Math.min(pass*5000,20000))})}
+  for(var pass=0;pass<2;pass++){
+    if(pass>0){if(onWait)onWait(pass);await new Promise(function(r){setTimeout(r,3000)})}
     var retry=false;
     for(var i=0;i<models.length;i++){
       var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},150000),res;
       try{
         res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(models[i])+':generateContent',{
-          method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':AI.key},
+          method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':gkey},
           body:JSON.stringify({systemInstruction:{parts:[{text:pr.sys}]},contents:[{role:'user',parts:[{text:pr.user}]}],generationConfig:{responseMimeType:'application/json',temperature:.5,maxOutputTokens:30000}})
         });
       }catch(e){clearTimeout(to);throw new Error(e&&e.name==='AbortError'?'Demorou demais. Tente de novo, ou use um tema menor.':'Não consegui falar com o Google. Verifique a internet e tente de novo.')}
@@ -1208,22 +1212,60 @@ async function callGemini(input,onWait){
     }
     if(!retry)break;
   }
-  if(lastErr)throw new Error(lastErr);
+  if(lastErr){var le=new Error(lastErr);le.busy=true;throw le}
   throw new Error('Nenhum modelo encontrado ('+lastNF+'). Troque o nome do modelo em ⋯ (ex.: gemini-flash-latest).');
+}
+async function callOpenAI(name,url,key,models,input,extra){
+  var pr=aiPrompt(input),lastErr=null,busy=false;
+  for(var i=0;i<models.length;i++){
+    var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},120000),res;
+    try{
+      res=await fetch(url,{method:'POST',signal:ctl.signal,headers:Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+key},extra||{}),
+        body:JSON.stringify({model:models[i],messages:[{role:'system',content:pr.sys},{role:'user',content:pr.user}],temperature:.5,max_tokens:7000,response_format:{type:'json_object'}})});
+    }catch(e){clearTimeout(to);lastErr=name+': sem conexão ou demorou demais';busy=true;continue}
+    clearTimeout(to);
+    var data=null;try{data=await res.json()}catch(e){}
+    var gm=data&&data.error&&(data.error.message||data.error.code);
+    if(res.status===429||res.status>=500){busy=true;lastErr=name+' ocupado ('+res.status+')';continue}
+    if(res.status===401||res.status===403){var e1=new Error(name+' recusou a chave ('+res.status+')');throw e1}
+    if(!res.ok){lastErr=name+' erro '+res.status+(gm?': '+String(gm).slice(0,80):'');continue}
+    var c=data&&data.choices&&data.choices[0],txt=c&&c.message&&c.message.content;
+    if(!txt){lastErr=name+' sem conteúdo';continue}
+    return{text:txt,cut:c.finish_reason==='length'};
+  }
+  var e=new Error(lastErr||name+' indisponível');e.busy=busy;throw e;
+}
+function keysOf(v){return String(v||'').split(/[\s,;]+/).filter(function(x){return x.length>8})}
+async function callAI(input,onWait){
+  var chain=[];
+  keysOf(AI.key).forEach(function(k){chain.push(function(){return callGemini(input,onWait,k)})});
+  keysOf(AI.groq).forEach(function(k){chain.push(function(){return callOpenAI('Groq','https://api.groq.com/openai/v1/chat/completions',k,['llama-3.3-70b-versatile','openai/gpt-oss-120b','llama-3.1-8b-instant'],input)})});
+  keysOf(AI.or).forEach(function(k){chain.push(function(){return callOpenAI('OpenRouter','https://openrouter.ai/api/v1/chat/completions',k,['openrouter/free','meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-chat-v3.1:free'],input,{'X-Title':'2MIND'})})});
+  var busy=false,msgs=[];
+  for(var i=0;i<chain.length;i++){
+    try{return await chain[i]()}catch(e){if(e&&e.busy)busy=true;msgs.push(e&&e.message||'erro');if(onWait&&i<chain.length-1)onWait(i+1)}
+  }
+  var f=new Error(msgs.join(' | '));f.busy=busy;throw f;
 }
 $('#btnAI').onclick=async function(){
   var btn=$('#btnAI'),raw=$('#paste').value.trim(),ttl=$('#mapTitle').value.trim(),input=raw||ttl;
   $('#err').textContent='';
   if(!input){$('#err').textContent='Digite o tema (ex.: função quadrática) ou cole o material na caixa, e clique de novo.';return}
   if(/^[\[{]/.test(raw)){$('#err').textContent='Isso já é um JSON. Use "Adicionar como novo mapa".';return}
-  if(!AI.key){openAI(true);return}
-  var lbl=btn.lastElementChild.textContent;btn.disabled=true;btn.lastElementChild.textContent='Gerando… (até 1 min)';
+  if(!AI.key&&!AI.groq&&!AI.or){openAI(true);return}
+  var lbl=btn.lastElementChild.textContent;btn.disabled=true;btn.lastElementChild.textContent='Gerando…';
   try{
-    var r=await callGemini(input,function(n){btn.lastElementChild.textContent='Google ocupado, tentando de novo ('+n+'/5)…'});
+    var r=await callAI(input,function(n){btn.lastElementChild.textContent='IA ocupada, tentando outra…'});
     $('#paste').value=r.text;
     $('#btnAdd').onclick();
     if(r.cut)toast('O mapa veio incompleto (resposta cortada). Gere de novo com um tema menor.');
-  }catch(e){$('#err').textContent=e.message}
+  }catch(e){
+    if(e&&e.busy){
+      /* Google ocupado: monta o mapa na hora, localmente, com o que foi escrito */
+      $('#paste').value=input;
+      try{$('#btnAdd').onclick();toast('As IAs estão ocupadas. Criei o mapa na hora com o seu texto. Tente a IA de novo mais tarde para preencher.')}catch(e2){$('#err').textContent=e.message}
+    }else $('#err').textContent=e.message;
+  }
   btn.disabled=false;btn.lastElementChild.textContent=lbl;
 };
 
