@@ -1184,8 +1184,8 @@ function aiErr(status,msg){
 }
 async function callGemini(input,onWait){
   var pr=aiPrompt(input),models=[AI.model].concat(AI_MODELS.filter(function(m){return m!==AI.model})),lastNF=null,lastErr=null;
-  for(var pass=0;pass<3;pass++){
-    if(pass>0){if(onWait)onWait(pass);await new Promise(function(r){setTimeout(r,pass*4000)})}
+  for(var pass=0;pass<6;pass++){
+    if(pass>0){if(onWait)onWait(pass);await new Promise(function(r){setTimeout(r,Math.min(pass*5000,20000))})}
     var retry=false;
     for(var i=0;i<models.length;i++){
       var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},150000),res;
@@ -1219,7 +1219,7 @@ $('#btnAI').onclick=async function(){
   if(!AI.key){openAI(true);return}
   var lbl=btn.lastElementChild.textContent;btn.disabled=true;btn.lastElementChild.textContent='Gerando… (até 1 min)';
   try{
-    var r=await callGemini(input,function(n){btn.lastElementChild.textContent='Google ocupado, tentando de novo ('+n+'/2)…'});
+    var r=await callGemini(input,function(n){btn.lastElementChild.textContent='Google ocupado, tentando de novo ('+n+'/5)…'});
     $('#paste').value=r.text;
     $('#btnAdd').onclick();
     if(r.cut)toast('O mapa veio incompleto (resposta cortada). Gere de novo com um tema menor.');
