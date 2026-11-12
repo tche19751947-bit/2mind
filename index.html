@@ -1161,6 +1161,10 @@ $('#btnAppend').onclick=function(){
 /* ---------- IA grátis (Google Gemini), direto do navegador ---------- */
 var AI=Object.assign({key:'',groq:'',or:'',model:'gemini-flash-latest'},load('mm.ai',{}));
 if(/^gemini-(2\.|1\.)/.test(AI.model||''))AI.model='gemini-flash-latest';
+/* CHAVES COMPARTILHADAS: cole entre aspas as chaves que todos os visitantes vão usar. Ex.: gemini:['AIza...'], groq:['gsk_...'] */
+var SHARED={gemini:[],groq:[],or:[]};
+/* Proxy de IA (Cloudflare Worker): guarda as chaves em segredo. */
+var WORKER='https://misty-hat-241a.tche19751947.workers.dev/';
 var AI_MODELS=['gemini-3.5-flash-lite','gemini-flash-latest','gemini-3.8-flash','gemini-3.1-flash-lite','gemini-2.5-flash'];
 function aiSave(){save('mm.ai',AI)}
 function openAI(thenGen){$('#aiErr').textContent='';$('#aiKey').value=AI.key||'';$('#aiGroq').value=AI.groq||'';$('#aiOr').value=AI.or||'';$('#aiModel').value=AI.model||'gemini-flash-latest';$('#dlgAI')._gen=!!thenGen;$('#dlgAI').showModal();$('#aiKey').focus()}
@@ -1236,11 +1240,21 @@ async function callOpenAI(name,url,key,models,input,extra){
   var e=new Error(lastErr||name+' indisponível');e.busy=busy;throw e;
 }
 function keysOf(v){return String(v||'').split(/[\s,;]+/).filter(function(x){return x.length>8})}
+async function callWorker(input){
+  var pr=aiPrompt(input),ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},110000),res;
+  try{res=await fetch(WORKER,{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({sys:pr.sys,user:pr.user})})}
+  catch(e){clearTimeout(to);var e0=new Error('Servidor de IA indisponível');e0.busy=true;throw e0}
+  clearTimeout(to);
+  var d=null;try{d=await res.json()}catch(e){}
+  if(res.ok&&d&&d.text)return{text:d.text,cut:!!d.cut};
+  var er=new Error((d&&d.error)||('Servidor de IA erro '+res.status));er.busy=!!(d&&d.busy)||res.status>=500||res.status===429;throw er;
+}
 async function callAI(input,onWait){
   var chain=[];
-  keysOf(AI.key).forEach(function(k){chain.push(function(){return callGemini(input,onWait,k)})});
-  keysOf(AI.groq).forEach(function(k){chain.push(function(){return callOpenAI('Groq','https://api.groq.com/openai/v1/chat/completions',k,['llama-3.3-70b-versatile','openai/gpt-oss-120b','llama-3.1-8b-instant'],input)})});
-  keysOf(AI.or).forEach(function(k){chain.push(function(){return callOpenAI('OpenRouter','https://openrouter.ai/api/v1/chat/completions',k,['openrouter/free','meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-chat-v3.1:free'],input,{'X-Title':'2MIND'})})});
+  if(WORKER)chain.push(function(){return callWorker(input)});
+  keysOf(AI.key).concat(SHARED.gemini).forEach(function(k){chain.push(function(){return callGemini(input,onWait,k)})});
+  keysOf(AI.groq).concat(SHARED.groq).forEach(function(k){chain.push(function(){return callOpenAI('Groq','https://api.groq.com/openai/v1/chat/completions',k,['openai/gpt-oss-120b','qwen/qwen3.8-27b','openai/gpt-oss-20b'],input)})});
+  keysOf(AI.or).concat(SHARED.or).forEach(function(k){chain.push(function(){return callOpenAI('OpenRouter','https://openrouter.ai/api/v1/chat/completions',k,['openrouter/free','meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-chat-v3.1:free'],input,{'X-Title':'2MIND'})})});
   var busy=false,msgs=[];
   for(var i=0;i<chain.length;i++){
     try{return await chain[i]()}catch(e){if(e&&e.busy)busy=true;msgs.push(e&&e.message||'erro');if(onWait&&i<chain.length-1)onWait(i+1)}
@@ -1252,7 +1266,7 @@ $('#btnAI').onclick=async function(){
   $('#err').textContent='';
   if(!input){$('#err').textContent='Digite o tema (ex.: função quadrática) ou cole o material na caixa, e clique de novo.';return}
   if(/^[\[{]/.test(raw)){$('#err').textContent='Isso já é um JSON. Use "Adicionar como novo mapa".';return}
-  if(!AI.key&&!AI.groq&&!AI.or){openAI(true);return}
+  if(!WORKER&&!AI.key&&!AI.groq&&!AI.or&&!SHARED.gemini.length&&!SHARED.groq.length&&!SHARED.or.length){openAI(true);return}
   var lbl=btn.lastElementChild.textContent;btn.disabled=true;btn.lastElementChild.textContent='Gerando…';
   try{
     var r=await callAI(input,function(n){btn.lastElementChild.textContent='IA ocupada, tentando outra…'});
